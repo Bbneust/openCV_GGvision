@@ -45,6 +45,12 @@ import org.opencv.imgproc.Imgproc;
 
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.List;
 
 import static org.opencv.imgproc.Imgproc.COLOR_BGR2GRAY;
 import static org.opencv.imgproc.Imgproc.INTER_CUBIC;
@@ -91,7 +97,7 @@ public class MainActivity extends AppCompatActivity {
         //camera permission
         cameraPermission = new String[]{Manifest.permission.CAMERA, Manifest.permission.WRITE_EXTERNAL_STORAGE};
         //storage permission
-        storagePermission = new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE};
+        storagePermission = new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE,Manifest.permission.READ_EXTERNAL_STORAGE};
     }
 
     //actionbar menu
@@ -272,6 +278,7 @@ public class MainActivity extends AppCompatActivity {
                 int thresholdMin = 85; // Threshold 80 to 105 is Ok
                 int thresholdMax = 255; // Always 255
 
+
                 Mat origin = new Mat();
 
                 Utils.bitmapToMat(bitmap,origin);
@@ -289,13 +296,13 @@ public class MainActivity extends AppCompatActivity {
 
                 writeImage("resize.jpg", origin_resize);
                 info("origin resize size is ==> "+origin_resize.size().height+" "+origin_resize.size().width);
-//                mPreviewIv.setImageBitmap(toBitmap(origin_resize));
+                mPreviewIv.setImageBitmap(toBitmap(origin_resize));
 
                 // 2. Convert the image to GRAY
                 Mat originGray = new Mat();
                 Imgproc.cvtColor(origin_resize, originGray, COLOR_BGR2GRAY);
                 writeImage("gray.jpg", originGray);
-//                mPreviewIv.setImageBitmap(toBitmap(originGray));
+                mPreviewIv.setImageBitmap(toBitmap(originGray));
 
                 //3. process noise
                 //เป็น kernel
@@ -306,11 +313,13 @@ public class MainActivity extends AppCompatActivity {
                 Imgproc.dilate(originGray, originGray, element1); //การพอง หากมีช่องใดช่องหนึ่งเป็นสีขาวก็จะให้ผลเป็นสีขาวทันที ดังนั้นบริเวณที่อยู่ใกล้สีขาวก็จะเป็นสีขาวไปด้วย ทำให้บริเวณสีขาวขยายตัวขึ้น
                 Imgproc.erode(originGray, originGray, element2); //"การกร่อน" (erode) ในที่นี้คือการนำเอาตัวกรองมาไล่กวาดบนภาพเพื่อลบบางส่วนทิ้งออกไป เช่นเดียวกับการที่ชายฝั่งหรือโขดหินเมื่อโดนน้ำกัดเซาะก็จะเกิดการกร่อนสูญเสียส่วนขอบไปแล้วยุบตัวลงได้
                 //จะได้ภาพที่มีอาณาเขตสีขาวลดลง เปลี่ยนกลายเป็นสีดำ เหมือนกับว่าโดนกัดเซาะให้กร่อนหายไป
+                writeImage("noise.jpg", originGray);
                 mPreviewIv.setImageBitmap(toBitmap(originGray));
 
-                //4. Image Smoothing techniques help in reducing the noise.
+                //4. Image Smoothing techniques help in reducing the noise. ==> ใช้กับรูปทั่วไป เอา kernel เล็กๆ
                 Mat GaussianBlurMat = new Mat();
                 Imgproc.GaussianBlur(originGray, GaussianBlurMat, new Size(3, 3), 0);
+                writeImage("Smoothing.jpg", GaussianBlurMat);
                 mPreviewIv.setImageBitmap(toBitmap(GaussianBlurMat));
 
                 //5.threshold ==> Thresholding is a technique in OpenCV, which is the assignment of pixel values in relation to the threshold value provided
@@ -320,9 +329,10 @@ public class MainActivity extends AppCompatActivity {
                 //ไม่ผ่าน ขาวมาก
                 //Imgproc.threshold(GaussianBlurMat, thresholdMat, thresholdMin, thresholdMax, THRESH_BINARY); //basic thresholding  + thresholdMin = our threshold
                 //ผ่าน
-                //Imgproc.adaptiveThreshold(GaussianBlurMat,thresholdMat, 255, Imgproc.ADAPTIVE_THRESH_MEAN_C, Imgproc.THRESH_BINARY, 15, 15);
+                Imgproc.adaptiveThreshold(GaussianBlurMat,thresholdMat, 255, Imgproc.ADAPTIVE_THRESH_MEAN_C, Imgproc.THRESH_BINARY, 15, 15);
                 //ผ่าน
                 //Imgproc.adaptiveThreshold(GaussianBlurMat,thresholdMat, 255, Imgproc.ADAPTIVE_THRESH_GAUSSIAN_C, Imgproc.THRESH_BINARY, 11, 2);
+                writeImage("threshold.jpg", thresholdMat);
                 mPreviewIv.setImageBitmap(toBitmap(thresholdMat));
 
                 TextRecognizer recognizer = new TextRecognizer.Builder(getApplicationContext()).build();
@@ -349,8 +359,8 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(this, "" + error, Toast.LENGTH_SHORT).show();
             }
         }
-
     }
+
     private void writeImage(String name, Mat origin_resize) {
 
         String appPath = Environment.getExternalStorageDirectory()+"/Pictures/iLLergi/RecognizeTextOCR/";
@@ -363,6 +373,47 @@ public class MainActivity extends AppCompatActivity {
         Imgcodecs.imwrite(appPath + name, origin_resize);
 
     }
+//    private void storeImage(Bitmap image) {
+//        File pictureFile = getOutputMediaFile();
+//        if (pictureFile == null) {
+//            Log.d(TAG,
+//                    "Error creating media file, check storage permissions: ");// e.getMessage());
+//            return;
+//        }
+//        try {
+//            FileOutputStream fos = new FileOutputStream(pictureFile);
+//            image.compress(Bitmap.CompressFormat.PNG, 90, fos);
+//            fos.close();
+//        } catch (FileNotFoundException e) {
+//            Log.d(TAG, "File not found: " + e.getMessage());
+//        } catch (IOException e) {
+//            Log.d(TAG, "Error accessing file: " + e.getMessage());
+//        }
+//    }
+//    /** Create a File for saving an image or video */
+//    private  File getOutputMediaFile(){
+//        // To be safe, you should check that the SDCard is mounted
+//        // using Environment.getExternalStorageState() before doing this.
+//        File mediaStorageDir = new File(Environment.getExternalStorageDirectory() +"/Pictures/iLLergi/");
+//        Log.d(TAG, Environment.getExternalStorageDirectory()
+//                        +"/Pictures/iLLergi/");
+//
+//        // This location works best if you want the created images to be shared
+//        // between applications and persist after your app has been uninstalled.
+//
+//        // Create the storage directory if it does not exist
+//        if (! mediaStorageDir.exists()){
+//            if (! mediaStorageDir.mkdirs()){
+//                return null;
+//            }
+//        }
+//        // Create a media file name
+//        String timeStamp = new SimpleDateFormat("ddMMyyyy_HHmm").format(new Date());
+//        File mediaFile;
+//        String mImageName="MI_"+ timeStamp +".jpg";
+//        mediaFile = new File(mediaStorageDir.getPath() + File.separator + mImageName);
+//        return mediaFile;
+//    }
 
     public static Bitmap toBitmap(Mat mat) {
         Bitmap bitmap = Bitmap.createBitmap(mat.width(), mat.height(), Bitmap.Config.ARGB_8888);
@@ -373,6 +424,5 @@ public class MainActivity extends AppCompatActivity {
     public static void info(Object msg) {
         Log.i(TAG, msg.toString());
     }
-
 
 }
