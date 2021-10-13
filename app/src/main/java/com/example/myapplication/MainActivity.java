@@ -50,9 +50,11 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.opencv.imgproc.Imgproc.COLOR_BGR2BGRA;
 import static org.opencv.imgproc.Imgproc.COLOR_BGR2GRAY;
 import static org.opencv.imgproc.Imgproc.COLOR_BGR2HSV;
 import static org.opencv.imgproc.Imgproc.COLOR_BGR2Lab;
+import static org.opencv.imgproc.Imgproc.COLOR_BGRA2BGR;
 import static org.opencv.imgproc.Imgproc.COLOR_Lab2BGR;
 import static org.opencv.imgproc.Imgproc.INTER_CUBIC;
 import static org.opencv.imgproc.Imgproc.MORPH_RECT;
@@ -278,40 +280,22 @@ public class MainActivity extends AppCompatActivity {
                 Mat img = new Mat();
                 Utils.bitmapToMat(bitmap,img);
 
-                /*Mat hsv_img = new Mat();
+                Mat hsv_img = new Mat();
                 Imgproc.cvtColor(img, hsv_img, COLOR_BGR2HSV);
                 writeImage("hsv_img.jpg", hsv_img);
 
                 Mat frame_threshed = new Mat();
                 Core.inRange(hsv_img, new Scalar(0, 0, 50),new Scalar(0, 0, 225),frame_threshed);
-                writeImage("frame_threshed.jpg", frame_threshed);*/
+                writeImage("frame_threshed.jpg", frame_threshed);
 
+                Imgproc.cvtColor(img, img, COLOR_BGRA2BGR);
+                Mat result1 = new Mat();
+                Photo.inpaint(img,frame_threshed,result1,0.1,Photo.INPAINT_TELEA);
+                writeImage("result1.jpg", result1);
 
-
-                Mat grayimg = new Mat();
-                Imgproc.cvtColor(img,grayimg,COLOR_BGR2GRAY);
-                writeImage("grayimg.jpg", grayimg);
-
-                //เป็นการเอา mask ออกจากรูป
-                //https://opencv24-python-tutorials.readthedocs.io/en/latest/py_tutorials/py_photo/py_inpainting/py_inpainting.html
-//
-//                Mat mask1 = new Mat();
-//                Imgproc.threshold(grayimg, mask1 , 220, 255, THRESH_BINARY);
-//                writeImage("mask1.jpg", mask1);
-
-//                Mat result1 = new Mat();
-//                Photo.inpaint(img,frame_threshed,result1,0.1,Photo.INPAINT_TELEA);
-//                writeImage("result1.jpg", result1);
-
-                //Histogram Equalization
-                //https://docs.opencv.org/3.4.15/d4/d1b/tutorial_histogram_equalization.html
-//                Mat equalizeHist = new Mat();
-//                Imgproc.equalizeHist( grayimg, equalizeHist );
-//                writeImage("equalizeHist.jpg", equalizeHist);
-//                mPreviewIv.setImageBitmap(toBitmap(equalizeHist));
 
                 Mat lab = new Mat();
-                Imgproc.cvtColor(img,lab,COLOR_BGR2Lab);
+                Imgproc.cvtColor(result1,lab,COLOR_BGR2Lab);
                 writeImage("lab.jpg", lab);
 
                 List<Mat> lab_planes = new ArrayList<>();
@@ -326,7 +310,7 @@ public class MainActivity extends AppCompatActivity {
                 lab_planes.set(0,dst);
 
                 Core.merge(lab_planes,lab);
-                writeImage("lab_merge.jpg", lab);
+                writeImage("lab_merge.jpg", lab); //ภาพจะเข้มขึ้น
 
                 Mat clahe_bgr = new Mat();
                 Imgproc.cvtColor(lab,clahe_bgr,COLOR_Lab2BGR);
