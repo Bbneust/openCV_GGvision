@@ -16,7 +16,6 @@ import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
@@ -29,7 +28,6 @@ import android.widget.ImageView;
 import android.widget.Toast;
 
 import com.google.android.gms.vision.Frame;
-import com.google.android.gms.vision.text.Text;
 import com.google.android.gms.vision.text.TextBlock;
 import com.google.android.gms.vision.text.TextRecognizer;
 import com.theartofdev.edmodo.cropper.CropImage;
@@ -37,27 +35,29 @@ import com.theartofdev.edmodo.cropper.CropImageView;
 
 import org.opencv.android.OpenCVLoader;
 import org.opencv.android.Utils;
+import org.opencv.core.Core;
 import org.opencv.core.Mat;
 import org.opencv.core.Point;
+import org.opencv.core.Scalar;
 import org.opencv.core.Size;
 import org.opencv.imgcodecs.Imgcodecs;
+import org.opencv.imgproc.CLAHE;
 import org.opencv.imgproc.Imgproc;
+import org.opencv.photo.Photo;
 
 
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.opencv.imgproc.Imgproc.COLOR_BGR2GRAY;
+import static org.opencv.imgproc.Imgproc.COLOR_BGR2HSV;
+import static org.opencv.imgproc.Imgproc.COLOR_BGR2Lab;
+import static org.opencv.imgproc.Imgproc.COLOR_Lab2BGR;
 import static org.opencv.imgproc.Imgproc.INTER_CUBIC;
 import static org.opencv.imgproc.Imgproc.MORPH_RECT;
+
 import static org.opencv.imgproc.Imgproc.THRESH_BINARY;
-import static org.opencv.imgproc.Imgproc.dilate;
-import static org.opencv.imgproc.Imgproc.erode;
 import static org.opencv.imgproc.Imgproc.getStructuringElement;
 
 public class MainActivity extends AppCompatActivity {
@@ -274,72 +274,73 @@ public class MainActivity extends AppCompatActivity {
                 BitmapDrawable bitmapDrawable = (BitmapDrawable) mPreviewIv.getDrawable();
                 Bitmap bitmap = bitmapDrawable.getBitmap();
 
-                int sourceWidth = 1366; // To scale to
-                int thresholdMin = 85; // Threshold 80 to 105 is Ok
-                int thresholdMax = 255; // Always 255
+//                ------------- image processing from Aj.vasin ----------------------
+                Mat img = new Mat();
+                Utils.bitmapToMat(bitmap,img);
+
+                /*Mat hsv_img = new Mat();
+                Imgproc.cvtColor(img, hsv_img, COLOR_BGR2HSV);
+                writeImage("hsv_img.jpg", hsv_img);
+
+                Mat frame_threshed = new Mat();
+                Core.inRange(hsv_img, new Scalar(0, 0, 50),new Scalar(0, 0, 225),frame_threshed);
+                writeImage("frame_threshed.jpg", frame_threshed);*/
 
 
-                Mat origin = new Mat();
 
-                Utils.bitmapToMat(bitmap,origin);
-                Size imgSize = origin.size();
-                info("orgin size is ==> "+imgSize.height+" "+imgSize.width);
-//                mPreviewIv.setImageBitmap(toBitmap(origin));
+                Mat grayimg = new Mat();
+                Imgproc.cvtColor(img,grayimg,COLOR_BGR2GRAY);
+                writeImage("grayimg.jpg", grayimg);
 
-                //1.scaling image
-                //Scaling of Image refers to the resizing of images. It is useful in image processing and manipulation in machine learning applications as it can reduce the time of training as less number of pixels, less is the complexity of the model.
-                Mat origin_resize = new Mat();
-                Imgproc.resize(origin,origin_resize, new Size(sourceWidth,imgSize.height * sourceWidth / imgSize.width),1.0, 1.0,
-                        INTER_CUBIC); //INTER_CUBIC – a bicubic interpolation over 4×4 pixel neighborhood
-                //ควรใช้เทคนิคแบบ Bicubic แทน เพราะให้ผลลัพธ์ที่ดีกว่า Bicubic เป็นเทคนิคที่ให้ผลลัพธ์ที่ดีกว่าสองแบบแรก เพราะจะมีการไล่โทนภาพที่สวยงามกว่า เหมาะสมกับการตกแต่งภาพถ่ายทุกประเภท
-                //https://anuntachaaoo.wordpress.com/2015/11/19/%E0%B8%AD%E0%B8%98%E0%B8%B4%E0%B8%9A%E0%B8%B2%E0%B8%A2-%E0%B9%80%E0%B8%A1%E0%B8%99%E0%B8%B9-image-interpolation/
+                //เป็นการเอา mask ออกจากรูป
+                //https://opencv24-python-tutorials.readthedocs.io/en/latest/py_tutorials/py_photo/py_inpainting/py_inpainting.html
+//
+//                Mat mask1 = new Mat();
+//                Imgproc.threshold(grayimg, mask1 , 220, 255, THRESH_BINARY);
+//                writeImage("mask1.jpg", mask1);
 
-                writeImage("resize.jpg", origin_resize);
-                info("origin resize size is ==> "+origin_resize.size().height+" "+origin_resize.size().width);
-                mPreviewIv.setImageBitmap(toBitmap(origin_resize));
+//                Mat result1 = new Mat();
+//                Photo.inpaint(img,frame_threshed,result1,0.1,Photo.INPAINT_TELEA);
+//                writeImage("result1.jpg", result1);
 
-                // 2. Convert the image to GRAY
-                Mat originGray = new Mat();
-                Imgproc.cvtColor(origin_resize, originGray, COLOR_BGR2GRAY);
-                writeImage("gray.jpg", originGray);
-                mPreviewIv.setImageBitmap(toBitmap(originGray));
+                //Histogram Equalization
+                //https://docs.opencv.org/3.4.15/d4/d1b/tutorial_histogram_equalization.html
+//                Mat equalizeHist = new Mat();
+//                Imgproc.equalizeHist( grayimg, equalizeHist );
+//                writeImage("equalizeHist.jpg", equalizeHist);
+//                mPreviewIv.setImageBitmap(toBitmap(equalizeHist));
 
-                //3. process noise
-                //เป็น kernel
-                Mat element1 = getStructuringElement(MORPH_RECT, new Size(2, 2), new Point(1, 1));
-                Mat element2 = getStructuringElement(MORPH_RECT, new Size(2, 2), new Point(1, 1));
+                Mat lab = new Mat();
+                Imgproc.cvtColor(img,lab,COLOR_BGR2Lab);
+                writeImage("lab.jpg", lab);
 
-                //https://phyblas.hinaboshi.com/oshi12 ==> เทคนิคนี้ใช้กับภาพที่มีแค่สีขาวดำ
-                Imgproc.dilate(originGray, originGray, element1); //การพอง หากมีช่องใดช่องหนึ่งเป็นสีขาวก็จะให้ผลเป็นสีขาวทันที ดังนั้นบริเวณที่อยู่ใกล้สีขาวก็จะเป็นสีขาวไปด้วย ทำให้บริเวณสีขาวขยายตัวขึ้น
-                Imgproc.erode(originGray, originGray, element2); //"การกร่อน" (erode) ในที่นี้คือการนำเอาตัวกรองมาไล่กวาดบนภาพเพื่อลบบางส่วนทิ้งออกไป เช่นเดียวกับการที่ชายฝั่งหรือโขดหินเมื่อโดนน้ำกัดเซาะก็จะเกิดการกร่อนสูญเสียส่วนขอบไปแล้วยุบตัวลงได้
-                //จะได้ภาพที่มีอาณาเขตสีขาวลดลง เปลี่ยนกลายเป็นสีดำ เหมือนกับว่าโดนกัดเซาะให้กร่อนหายไป
-                writeImage("noise.jpg", originGray);
-                mPreviewIv.setImageBitmap(toBitmap(originGray));
+                List<Mat> lab_planes = new ArrayList<>();
+                Core.split(lab,lab_planes);
 
-                //4. Image Smoothing techniques help in reducing the noise. ==> ใช้กับรูปทั่วไป เอา kernel เล็กๆ
-                Mat GaussianBlurMat = new Mat();
-                Imgproc.GaussianBlur(originGray, GaussianBlurMat, new Size(3, 3), 0);
-                writeImage("Smoothing.jpg", GaussianBlurMat);
-                mPreviewIv.setImageBitmap(toBitmap(GaussianBlurMat));
+                CLAHE clahe = Imgproc.createCLAHE();
+                clahe.setClipLimit(2.0);
+                clahe.setTilesGridSize(new Size(8,8));
 
-                //5.threshold ==> Thresholding is a technique in OpenCV, which is the assignment of pixel values in relation to the threshold value provided
-                //เป็นหลักการที่ใช้ค่าคงที่ค่าหนึ่ง ในการเปรียบเทียบกับค่าของ Pixel ในแต่ล่ะพื้น ถ้าค่าของ Pixel ในพื้นที่นั้นมีค่าน้อยกว่าค่าคงที่ ก็จะเปลี่ยนค่า Pixel ของพื้นที่นั้นเป็น 0 แต่ถ้าค่าของ Pixel ในพื้นที่นั้นมีค่ามากกว่าก็จะเปลี่ยนค่า Pixel ของพื้นที่นั้นเป็น 255
-                //https://www.pyimagesearch.com/2021/04/28/opencv-thresholding-cv2-threshold/
-                Mat thresholdMat = new Mat();
-                //ไม่ผ่าน ขาวมาก
-                //Imgproc.threshold(GaussianBlurMat, thresholdMat, thresholdMin, thresholdMax, THRESH_BINARY); //basic thresholding  + thresholdMin = our threshold
-                //ผ่าน
-                Imgproc.adaptiveThreshold(GaussianBlurMat,thresholdMat, 255, Imgproc.ADAPTIVE_THRESH_MEAN_C, Imgproc.THRESH_BINARY, 15, 15);
-                //ผ่าน
-                //Imgproc.adaptiveThreshold(GaussianBlurMat,thresholdMat, 255, Imgproc.ADAPTIVE_THRESH_GAUSSIAN_C, Imgproc.THRESH_BINARY, 11, 2);
-                writeImage("threshold.jpg", thresholdMat);
-                mPreviewIv.setImageBitmap(toBitmap(thresholdMat));
+                Mat dst = new Mat();
+                clahe.apply(lab_planes.get(0),dst);
+                lab_planes.set(0,dst);
+
+                Core.merge(lab_planes,lab);
+                writeImage("lab_merge.jpg", lab);
+
+                Mat clahe_bgr = new Mat();
+                Imgproc.cvtColor(lab,clahe_bgr,COLOR_Lab2BGR);
+                writeImage("clahe_bgr.jpg", clahe_bgr);
+                mPreviewIv.setImageBitmap(toBitmap(clahe_bgr));
+
+
 
                 TextRecognizer recognizer = new TextRecognizer.Builder(getApplicationContext()).build();
                 if (!recognizer.isOperational()) {
                     Toast.makeText(this, "Error", Toast.LENGTH_SHORT).show();
                 } else {
-                    Frame frame = new Frame.Builder().setBitmap(toBitmap(thresholdMat)).build();
+                    Frame frame = new Frame.Builder().setBitmap(toBitmap(clahe_bgr)).build();
+//                    Frame frame = new Frame.Builder().setBitmap(bitmap).build();
                     SparseArray<TextBlock> items = recognizer.detect(frame);
                     StringBuilder sb = new StringBuilder();
 
@@ -373,47 +374,6 @@ public class MainActivity extends AppCompatActivity {
         Imgcodecs.imwrite(appPath + name, origin_resize);
 
     }
-//    private void storeImage(Bitmap image) {
-//        File pictureFile = getOutputMediaFile();
-//        if (pictureFile == null) {
-//            Log.d(TAG,
-//                    "Error creating media file, check storage permissions: ");// e.getMessage());
-//            return;
-//        }
-//        try {
-//            FileOutputStream fos = new FileOutputStream(pictureFile);
-//            image.compress(Bitmap.CompressFormat.PNG, 90, fos);
-//            fos.close();
-//        } catch (FileNotFoundException e) {
-//            Log.d(TAG, "File not found: " + e.getMessage());
-//        } catch (IOException e) {
-//            Log.d(TAG, "Error accessing file: " + e.getMessage());
-//        }
-//    }
-//    /** Create a File for saving an image or video */
-//    private  File getOutputMediaFile(){
-//        // To be safe, you should check that the SDCard is mounted
-//        // using Environment.getExternalStorageState() before doing this.
-//        File mediaStorageDir = new File(Environment.getExternalStorageDirectory() +"/Pictures/iLLergi/");
-//        Log.d(TAG, Environment.getExternalStorageDirectory()
-//                        +"/Pictures/iLLergi/");
-//
-//        // This location works best if you want the created images to be shared
-//        // between applications and persist after your app has been uninstalled.
-//
-//        // Create the storage directory if it does not exist
-//        if (! mediaStorageDir.exists()){
-//            if (! mediaStorageDir.mkdirs()){
-//                return null;
-//            }
-//        }
-//        // Create a media file name
-//        String timeStamp = new SimpleDateFormat("ddMMyyyy_HHmm").format(new Date());
-//        File mediaFile;
-//        String mImageName="MI_"+ timeStamp +".jpg";
-//        mediaFile = new File(mediaStorageDir.getPath() + File.separator + mImageName);
-//        return mediaFile;
-//    }
 
     public static Bitmap toBitmap(Mat mat) {
         Bitmap bitmap = Bitmap.createBitmap(mat.width(), mat.height(), Bitmap.Config.ARGB_8888);
